@@ -1,0 +1,142 @@
+{% extends layout_template %}
+{% load static %}
+{% load sapp_filters %}
+{% load crispy_forms_tags %}
+
+{% block title %}
+	{{system_title}} | SAPP HR | Attendance Register
+{% endblock title %}
+
+{% block pageheadertitleh5 %}SAPP HR Register{% endblock pageheadertitleh5 %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="/{{user_root_url}}/"><i class="feather icon-home"></i></a></li>
+<li class="breadcrumb-item"><a href="/{% settings_value 'SAPP_URL' %}/sapp_hr/"><i class="feather icon-command"></i></a></li>
+<li class="breadcrumb-item"><a href="#!">Attendance Register</a></li>
+{% endblock breadcrumb %}
+
+{% block mainrow %}
+<div class="col-12">
+    <div class="card">
+        <div class="card-body">
+            <form id="register-dates-form">
+                <div class="form-row">
+                    <div class="col-md-5">
+                        <div class="form-group">
+                            <input type="date" value="{{ start_date|date:'Y-m-d' }}" name="start_date" id="start_date" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="col-md-5">
+                        <div class="form-group">
+                            <input type="date" value="{% now 'Y-m-d' %}" name="end_date" id="end_date" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-primary has-ripple w-100">Submit</button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="col-12">
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table id="register-table" class="table table-sm table-striped table-striped-columns table-bordered table-hover">
+                    <thead>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+    
+{% endblock mainrow %}
+
+{% block js %}
+{{ block.super }}
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const headers = {'X-CSRFToken': '{{ csrf_token }}'}
+        const attendanceMethodsURL = `/{% settings_value 'SAPP_URL' %}/api/method/sapp_hr/attendance/`
+        const getStatusBG = (status) => {
+            switch (status) {
+                case "P":
+                    return "green"
+                case "A":
+                    return "red"
+                case "DD":
+                    return "blue"
+                case "W":
+                    return "gray"
+                default:
+                    return "white"
+            }
+        }
+        const renderRegister = (data) => {
+            $("#register-table thead").html("").html(`
+            <tr>
+                <th>Contract</th>
+                ${
+                    Object.entries(data.header).map(([k, v]) => `<th>${k.slice(0,10)}</th>`).join("")
+                }
+                <th>Absent</th>
+                <th>Worked</th>
+                <th>Present</th>
+                <th>Leave</th>
+                <th>Blank</th>
+                <th>Hours</th>
+                <th>Days</th>
+                <th>Percentage</th>
+            </tr>
+            `)
+            $("#register-table tbody").html("").html(`
+            ${
+                Object.entries(data.body).map(([k, v]) => `
+                <tr>
+                    <td>${v.contract.str}</td>
+                    ${
+                        v.attendances.map((status) => `<td style="background: ${getStatusBG(status)}; color: white;">${status}</td>`)
+                    }
+                    <td>${v.days_absent}</td>
+                    <td>${v.days_worked}</td>
+                    <td>${v.days_present}</td>
+                    <td>${v.leave_days}</td>
+                    <td>${v.blank_days}</td>
+                    <td>${v.hours_worked}</td>
+                    <td>${v.attendances_count}</td>
+                    <td>${v.percentage}</td>
+                </tr>
+                `).join("")
+            }
+            `)
+        }
+        $("#register-dates-form").on("submit", (e) => {
+            e.preventDefault()
+            $.ajax({
+                url: `${attendanceMethodsURL}get_register_data/`,
+                method: "POST",
+                headers: headers,
+                data: $("#register-dates-form").serialize(),
+                success: (res) => {
+                    if (res?.data) {
+                        console.log(res.data)
+                        renderRegister(res.data)
+                    }
+                },
+                error: (error) => {
+                    alert(error.statusText)
+                    console.error(error)
+                }
+            })
+            return false
+        })
+    })
+</script>
+{% endblock js %}
+    

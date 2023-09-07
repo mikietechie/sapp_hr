@@ -1,0 +1,176 @@
+{% extends layout_template %}
+{% load static %}
+{% load sapp_filters %}
+{% load crispy_forms_tags %}
+
+{% block title %}
+	{{system_title}} | SAPP HR | Mark Register
+{% endblock title %}
+
+{% block pageheadertitleh5 %}SAPP HR Mark Register{% endblock pageheadertitleh5 %}
+
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="/{{user_root_url}}/"><i class="feather icon-home"></i></a></li>
+<li class="breadcrumb-item"><a href="/{% settings_value 'SAPP_URL' %}/sapp_hr/"><i class="feather icon-command"></i></a></li>
+<li class="breadcrumb-item"><a href="#!">Mark Register</a></li>
+{% endblock breadcrumb %}
+
+{% block mainrow %}
+<div class="col-12">
+    <div class="card">
+        <div class="card-body">
+            <form id="register-date-form">
+                <div class="form-row">
+                    <div class="col-md-8">
+                        <div class="form-group">
+                            <input type="date" value="{% now 'Y-m-d' %}" name="register-date" id="register-date" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-primary has-ripple w-100">Register Date</button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="col-12">
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table id="register-table" class="table table-sm table-striped table-striped-columns table-bordered table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Contract</th>
+                            <th>Status</th>
+                            <th>Check In</th>
+                            <th>Check Out</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+    
+{% endblock mainrow %}
+
+{% block js %}
+{{ block.super }}
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const headers = {'X-CSRFToken': '{{ csrf_token }}'}
+        const attendanceMethodsURL = `/{% settings_value 'SAPP_URL' %}/api/method/sapp_hr/attendance/`
+        const renderRegister = () => {
+            $.ajax({
+                url: `${attendanceMethodsURL}get_register_for_date/`,
+                method: "POST",
+                headers: headers,
+                data: {
+                    date: $("#register-date").val()
+                },
+                success: (res) => {
+                    console.log(res.data)
+                    if (res?.data) {
+                        $("#register-table tbody").html("").html(`
+                        ${
+                            res.data.attendances.map((att) => `
+                            <tr class="attendance-row">
+                                <td>${att.attendance}</td>
+                                <td>${att.contract_str}</td>
+                                <td>
+                                    <input type="hidden" name="contract" value="${att.contract}">
+                                    <input type="hidden" name="attendance" value="${att.attendance}">
+                                    <select class="form-select form-control attendance-status-select" name="status">
+                                        ${
+                                            res.data.attendance_status_choices.map(
+                                                (status) => `<option value="${status}" ${att.status === status ? "selected" : ""}>${status}</option>`
+                                            )
+                                        }
+                                    </select>
+                                </td>
+                                <td>
+                                    <input type="datetime-local" class="form-control" name="check_in" value="${att.check_in?.slice(0,-1)}">
+                                </td>
+                                <td>
+                                    <input type="datetime-local" class="form-control" name="check_out" value="${att.check_out?.slice(0,-1)}">
+                                </td>
+                                <td>
+                                    <button type="submit" class="btn btn-sm btn-icon btn-outline-primary has-ripple"><i class="fas fa-calendar-check"></i></button>
+                                </td>
+                            </tr>
+                            `).join("")
+                        }
+                        `)
+                    
+                    
+                        $("table#register-table tbody .attendance-row").each((i, el) => {
+                            const $form = $(el)
+                            $form.find("button").click(() => {
+                                const data = {
+                                    attendance: $form.find('[name="attendance"]').val(),
+                                    contract: $form.find('[name="contract"]').val(),
+                                    status: $form.find('[name="status"]').val(),
+                                    check_in: $form.find('[name="check_in"]').val(),
+                                    check_out: $form.find('[name="check_out"]').val(),
+                                    date: $("#register-date").val()
+                                }
+                                updateAttendance(data)
+                            })
+                        })
+                    }
+                },
+                error: (error) => {
+                    alert(error.statusText)
+                    console.error(error)
+                }
+            })
+        }
+        const updateAttendance = (attendanceData) => {
+            $.ajax({
+                url: `${attendanceMethodsURL}create_update_attendance/`,
+                method: "POST",
+                headers: headers,
+                data: attendanceData,
+                success: (res) => {
+                    console.log(res)
+                },
+                error: (error) => {
+                    alert(error.statusText)
+                    console.error(error)
+                }
+            })
+        }
+        $("#register-date-form").on("submit", (e) => {
+            e.preventDefault()
+            $.ajax({
+                url: `${attendanceMethodsURL}create_register_for_date/`,
+                method: "POST",
+                headers: headers,
+                data: {
+                    date: $("#register-date").val()
+                },
+                success: (res) => {
+                    if (!isNaN(res?.data)) {
+                        renderRegister()
+                    }
+                },
+                error: (error) => {
+                    alert(error.statusText)
+                    console.error(error)
+                }
+            })
+            return false
+        })
+    })
+</script>
+{% endblock js %}
+    

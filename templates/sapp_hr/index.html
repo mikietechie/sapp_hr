@@ -1,0 +1,538 @@
+{% extends layout_template %}
+{% load static %}
+{% load sapp_filters %}
+{% load crispy_forms_tags %}
+
+{% block title %}
+	{{system_title}} | SAPP HR | Dashboard
+{% endblock title %}
+
+{% block pageheadertitleh5 %}SAPP HR Dashboard{% endblock pageheadertitleh5 %}
+
+{% block maincol %}
+
+<a href="/{% settings_value 'SAPP_URL' %}/module/sapp_hr/" class="col-md-6 col-lg-3">
+    <div class="card">
+        <div class="card-body">
+            <div class="row align-items-center m-l-0">
+                <div class="col-auto">
+                    <i class="icon fas fa-database fa-2x text-c-purple"></i>
+                </div>
+                <div class="col-auto">
+                    <h6 class="text-muted m-b-10 badge badge-light-primary">Manage</h6>
+                    <h2 class="m-b-0">HR Data</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+</a>
+    
+<a href="/{% settings_value 'SAPP_URL' %}/sapp_hr/mark-register" class="col-md-6 col-lg-5">
+    <div class="card">
+        <div class="card-body">
+            <div class="row align-items-center m-l-0">
+                <div class="col-auto">
+                    <i class="icon fas fa-user-check fa-2x text-c-purple"></i>
+                </div>
+                <div class="col-auto">
+                    <h6 class="text-muted m-b-10 badge badge-light-primary">{% now '' %}</h6>
+                    <h2 class="m-b-0">Mark Register</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+</a>
+    
+<a href="/{% settings_value 'SAPP_URL' %}/sapp_hr/attendance-register" class="col-md-6 col-lg-4">
+    <div class="card">
+        <div class="card-body">
+            <div class="row align-items-center m-l-0">
+                <div class="col-auto">
+                    <i class="icon fas fa-calendar-week fa-2x text-c-purple"></i>
+                </div>
+                <div class="col-auto">
+                    <h6 class="text-muted m-b-10 badge badge-light-primary">Attendance</h6>
+                    <h2 class="m-b-0">Register</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+</a>
+
+<div class="col-md-6">
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title">Contracts Per Department</h5>
+        </div>
+        <div class="card-body">
+            <div id="department-contract-stats"></div>
+        </div>
+    </div>
+</div>
+
+<div class="col-md-6">
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title">Contracts Per Grade</h5>
+        </div>
+        <div class="card-body">
+            <div id="grade-contract-stats"></div>
+        </div>
+    </div>
+</div>
+
+<div class="col-md-6">
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title">Contracts Per Rank</h5>
+        </div>
+        <div class="card-body">
+            <div id="rank-contract-stats"></div>
+        </div>
+    </div>
+</div>
+
+<div class="col-md-6">
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title">Salaries</h5>
+        </div>
+        <div class="card-body">
+            <div id="salaries-stats"></div>
+        </div>
+    </div>
+</div>
+
+<div class="col-md-6">
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title">Grade Salaries</h5>
+        </div>
+        <div class="card-body">
+            <div id="grade-salaries-stats"></div>
+        </div>
+    </div>
+</div>
+
+<div class="col-md-6 col-lg-3">
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title">Contract Work Types</h5>
+        </div>
+        <div class="card-body">
+            <div id="contract-work-types-stats"></div>
+        </div>
+    </div>
+</div>
+
+<div class="col-md-6 col-lg-3">
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title">Contract Termination Reasons</h5>
+        </div>
+        <div class="card-body">
+            <div id="contract-termination-reasons-stats"></div>
+        </div>
+    </div>
+</div>
+    
+{% endblock maincol %}
+
+
+{% block js %}
+{{ block.super }}
+<script src="{% static 'sapp_abelpro/assets/js/plugins/apexcharts.min.js' %}"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const headers = {'X-CSRFToken': '{{ csrf_token }}'}
+        const methodsBaseURL = `/{% settings_value 'SAPP_URL' %}/api/method/sapp_hr/`
+        const setupDepartmentContractStats = () => {
+            const render = (data) => {
+                (
+                    new ApexCharts(
+                        document.querySelector("#department-contract-stats"),
+                        {
+                            chart: {
+                                height: 300,
+                                type: 'bar',
+                                sparkline: {
+                                    enabled: true
+                                },
+                            },
+                            plotOptions: {
+                                bar: {
+                                    columnWidth: '55%',
+                                    distributed: true
+                                }
+                            },
+                            dataLabels: {
+                                enabled: true,
+                            },
+                            stroke: {
+                                width: 0
+                            },
+                            series: [{
+                                name: 'Department Active Contracts',
+                                data: Object.values(data)
+                            }],
+                            xaxis: {
+                                categories: Object.keys(data),
+                            },
+                            legend: {
+                                show: true,
+                                position: 'top'
+                            }
+                        }
+                    )
+                ).render()
+            }
+            $.ajax({
+                url: `${methodsBaseURL}department/get_department_contract_stats/`,
+                method: "POST",
+                headers: headers,
+                data: {},
+                success: (res) => {
+                    if (res?.data) {
+                        render(res.data)
+                    }
+                },
+                error: (error) => {
+                    alert(error.statusText)
+                    console.error(error)
+                }
+            })
+        }
+        try {
+            setupDepartmentContractStats()
+        } catch (_) {}
+        const setupRankContractStats = () => {
+            const render = (data) => {
+                (
+                    new ApexCharts(
+                        document.querySelector("#rank-contract-stats"),
+                        {
+                            chart: {
+                                height: 300,
+                                type: 'bar',
+                                sparkline: {
+                                    enabled: true
+                                },
+                            },
+                            plotOptions: {
+                                bar: {
+                                    columnWidth: '55%',
+                                    distributed: true
+                                }
+                            },
+                            dataLabels: {
+                                enabled: true,
+                            },
+                            stroke: {
+                                width: 0
+                            },
+                            series: [{
+                                name: 'Rank Active Contracts',
+                                data: Object.values(data)
+                            }],
+                            xaxis: {
+                                categories: Object.keys(data),
+                            },
+                            legend: {
+                                show: true,
+                                position: 'top'
+                            }
+                        }
+                    )
+                ).render()
+            }
+            $.ajax({
+                url: `${methodsBaseURL}rank/get_rank_contract_stats/`,
+                method: "POST",
+                headers: headers,
+                data: {},
+                success: (res) => {
+                    if (res?.data) {
+                        render(res.data)
+                    }
+                },
+                error: (error) => {
+                    alert(error.statusText)
+                    console.error(error)
+                }
+            })
+        }
+        try {
+            setupRankContractStats()
+        } catch (_) {}
+        const setupGradeContractStats = () => {
+            const render = (data) => {
+                (
+                    new ApexCharts(
+                        document.querySelector("#grade-contract-stats"),
+                        {
+                            chart: {
+                                height: 300,
+                                type: 'bar',
+                                sparkline: {
+                                    enabled: true
+                                },
+                            },
+                            plotOptions: {
+                                bar: {
+                                    columnWidth: '55%',
+                                    distributed: true
+                                }
+                            },
+                            dataLabels: {
+                                enabled: true,
+                            },
+                            stroke: {
+                                width: 0
+                            },
+                            series: [{
+                                name: 'Requests',
+                                data: Object.values(data)
+                            }],
+                            xaxis: {
+                                categories: Object.keys(data),
+                            },
+                            legend: {
+                                show: true,
+                                position: 'top'
+                            }
+                        }
+                    )
+                ).render()
+            }
+            $.ajax({
+                url: `${methodsBaseURL}grade/get_grade_contract_stats/`,
+                method: "POST",
+                headers: headers,
+                data: {},
+                success: (res) => {
+                    if (res?.data) {
+                        render(res.data)
+                    }
+                },
+                error: (error) => {
+                    alert(error.statusText)
+                    console.error(error)
+                }
+            })
+        }
+        try {
+            setupGradeContractStats()
+        } catch (_) {}
+        const setupSalariesStats = () => {
+            const render = (data) => {
+                (
+                    new ApexCharts(
+                        document.querySelector("#salaries-stats"),
+                        {
+                            chart: {
+                                height: 300,
+                                type: 'bar',
+                                sparkline: {
+                                    enabled: true
+                                },
+                            },
+                            plotOptions: {
+                                bar: {
+                                    columnWidth: '55%',
+                                    distributed: true
+                                }
+                            },
+                            dataLabels: {
+                                enabled: true,
+                            },
+                            stroke: {
+                                width: 0
+                            },
+                            series: [{
+                                name: 'Salary Amount',
+                                data: Object.values(data)
+                            }],
+                            xaxis: {
+                                categories: Object.keys(data),
+                            },
+                            legend: {
+                                show: true,
+                                position: 'top'
+                            }
+                        }
+                    )
+                ).render()
+            }
+            $.ajax({
+                url: `${methodsBaseURL}grade/get_salaries_stats/`,
+                method: "POST",
+                headers: headers,
+                data: {},
+                success: (res) => {
+                    if (res?.data) {
+                        render(res.data)
+                    }
+                },
+                error: (error) => {
+                    alert(error.statusText)
+                    console.error(error)
+                }
+            })
+        }
+        try {
+            setupSalariesStats()
+        } catch (_) {}
+        const setupGradeSalariesStats = () => {
+            const render = (data) => {
+                (
+                    new ApexCharts(
+                        document.querySelector("#grade-salaries-stats"),
+                        {
+                            chart: {
+                                height: 300,
+                                type: 'donut',
+                            },
+                            dataLabels: {
+                                enabled: false
+                            },
+                            plotOptions: {
+                                pie: {
+                                    donut: {
+                                        size: '65%'
+                                    }
+                                }
+                            },
+                            labels: Object.keys(data),
+                            series: Object.values(data),
+                            legend: {
+                                show: true,
+                                position: "top"
+                            },
+                        }
+                    )
+                ).render()
+            }
+            $.ajax({
+                url: `${methodsBaseURL}grade/get_grade_salaries_stats/`,
+                method: "POST",
+                headers: headers,
+                data: {},
+                success: (res) => {
+                    if (res?.data) {
+                        render(res.data)
+                    }
+                },
+                error: (error) => {
+                    alert(error.statusText)
+                    console.error(error)
+                }
+            })
+        }
+        try {
+            setupGradeSalariesStats()
+        } catch (_) {}
+        const setupContractWorkTypeStats = () => {
+            const render = (data) => {
+                (
+                    new ApexCharts(
+                        document.querySelector("#contract-work-types-stats"),
+                        {
+                            chart: {
+                                height: 200,
+                                type: 'donut',
+                            },
+                            dataLabels: {
+                                enabled: false
+                            },
+                            plotOptions: {
+                                pie: {
+                                    donut: {
+                                        size: '65%'
+                                    }
+                                }
+                            },
+                            labels: Object.keys(data),
+                            series: Object.values(data),
+                            legend: {
+                                show: true,
+                                position: "top"
+                            },
+                        }
+                
+                    )
+                ).render()
+            }
+            $.ajax({
+                url: `${methodsBaseURL}contract/get_contract_work_types_stats/`,
+                method: "POST",
+                headers: headers,
+                data: {},
+                success: (res) => {
+                    if (res?.data) {
+                        render(res.data)
+                    }
+                },
+                error: (error) => {
+                    alert(error.statusText)
+                    console.error(error)
+                }
+            })
+        }
+        try {
+            setupContractWorkTypeStats()
+        } catch (_) {}
+        const setupContractTerminationReasonsStats = () => {
+            const render = (data) => {
+                (
+                    new ApexCharts(
+                        document.querySelector("#contract-termination-reasons-stats"),
+                        {
+                            chart: {
+                                height: 200,
+                                type: 'donut',
+                            },
+                            dataLabels: {
+                                enabled: false
+                            },
+                            plotOptions: {
+                                pie: {
+                                    donut: {
+                                        size: '65%'
+                                    }
+                                }
+                            },
+                            labels: Object.keys(data),
+                            series: Object.values(data),
+                            legend: {
+                                show: true,
+                                position: "top"
+                            },
+                        }
+                
+                    )
+                ).render()
+            }
+            $.ajax({
+                url: `${methodsBaseURL}contract/get_contract_termination_reasons_stats/`,
+                method: "POST",
+                headers: headers,
+                data: {},
+                success: (res) => {
+                    if (res?.data) {
+                        render(res.data)
+                    }
+                },
+                error: (error) => {
+                    alert(error.statusText)
+                    console.error(error)
+                }
+            })
+        }
+        try {
+            setupContractTerminationReasonsStats()
+        } catch (_) {}
+        
+    })
+</script>
+    
+{% endblock js %}
