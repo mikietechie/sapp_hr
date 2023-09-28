@@ -203,7 +203,7 @@ class Ceremony(SM):
 class Person(SM):
     '''Employee/Applicant'''
     icon = "fas fa-user-tie"
-    cols_css_class = "col-md-6"
+    cols_css_class = cls.COL_MD6
     list_field_names = ("id", "full_name", "id_number", "gender", "employment_type")
     has_attachments = True
     has_notes = True
@@ -219,16 +219,16 @@ class Person(SM):
     id_number = models.CharField(max_length=128)
     first_name = models.CharField(max_length=128, blank=True)
     last_name = models.CharField(max_length=128, blank=True)
-    email = models.EmailField(max_length=128, blank=True)
-    phone = models.CharField(max_length=16, blank=True)
+    email = models.EmailField(max_length=128, blank=True, null=True)
+    phone = models.CharField(max_length=16, blank=True, null=True)
     gender = models.CharField(max_length=1, choices=SM.iter_as_choices("M", "F", "O"))
     DOB = models.DateField()
     employment_type = models.CharField(max_length=32, choices=SM.iter_as_choices(*EMPLOYMENT_TYPES))
-    resume = FileField(upload_to="personnel")
-    id_document_file = FileField(upload_to="personnel")
-    proof_of_residence_file = FileField(upload_to="personnel", blank=True, null=True)
-    address = models.TextField(max_length=128)
-    about = HTMLField()
+    resume = FileField(upload_to="personnel", blank=True, null=True, serialize=cls.CLS_COL_12)
+    id_document_file = FileField(upload_to="personnel", blank=True, null=True, serialize=cls.CLS_COL_12)
+    proof_of_residence_file = FileField(upload_to="personnel", blank=True, null=True, serialize=cls.CLS_COL_12)
+    address = models.TextField(max_length=128, blank=True, null=True, serialize=cls.CLS_COL_12)
+    about = HTMLField(blank=True, null=True, serialize=cls.CLS_COL_12)
 
     @property
     def full_name(self):
@@ -281,7 +281,7 @@ class Employee(Person):
 
 class EmployeeAward(SM):
     icon = "fas fa-trophy"
-    cols_css_class = "col-md-6"
+    cols_css_class = cls.COL_MD6
     list_field_names = ("id", "employee", "award", "ceremony", "date")
     filter_field_names = ("employee", "award", "ceremony")
 
@@ -366,11 +366,12 @@ class Contract(SM):
     expire_date = models.DateField(blank=True, null=True)
     department = models.ForeignKey(Department, on_delete=models.PROTECT)
     grade = models.ForeignKey(Grade, on_delete=models.PROTECT)
-    rank = models.ForeignKey(Rank, on_delete=models.PROTECT)
+    rank = models.ForeignKey(Rank, on_delete=models.PROTECT, blank=True, null=True)
     work_type = models.CharField(max_length=32, choices=SM.iter_as_choices(*WORK_TYPES))
     application_letter = FileField(upload_to="sapp_hr_contract_application_letters", blank=True, null=True)
     file = FileField(upload_to="sapp_hr_contract_files", blank=True, null=True)
     image = ImageField(upload_to="sapp_hr_contract_images", blank=True, null=True)
+    salary = models.DecimalField(max_digits=16, decimal_places=2, blank=True, null=True)
     working_hours = models.FloatField(default=8)
     default_attendance_status = models.CharField(max_length=2, choices=SM.iter_as_choices(*Settings.ATTENDANCE_STATUSES), default="P")
     default_check_in = models.TimeField(blank=True, null=True)
