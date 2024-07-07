@@ -63,7 +63,7 @@
 <script>
     document.addEventListener("DOMContentLoaded", () => {
         const headers = {'X-CSRFToken': '{{ csrf_token }}'}
-        const attendanceMethodsURL = `/{% settings_value 'SAPP_URL' %}/api/method/sapp_hr/attendance/`
+        const attendanceMethodsURL = `/{% settings_value 'SAPP_URL' %}/sapp_hr/api/method/attendance/`
         const getStatusBG = (status) => {
             switch (status) {
                 case "P":
